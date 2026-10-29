@@ -46,6 +46,7 @@ function addMember(room, socketId, name) {
 
 export function createRoom(socketId, name) {
   const problem = listProblems()[0];
+  if (!problem) throw new Error("No questions are loaded.");
   const room = {
     code: makeCode(),
     problemSlug: problem.slug,
@@ -98,14 +99,16 @@ export function setProblem(code, slug) {
 
 export function sealIdea(code, socketId, text) {
   const room = rooms.get(code);
-  if (!room) return null;
+  if (!room) return { ok: false, error: "This room is gone." };
   const member = room.members.get(socketId);
   const clean = String(text || "").trim().slice(0, 180);
-  if (!member || !clean || room.ideas.get(socketId)?.sealed) return ideaView(room);
+  if (!member) return { ok: false, error: "You are not in this room." };
+  if (!clean) return { ok: false, error: "Write a sentence before you seal it." };
+  if (room.ideas.get(socketId)?.sealed) return { ok: true, ...ideaView(room) };
   room.ideas.set(socketId, { name: member.name, text: clean, sealed: true });
   const stillWriting = [...room.members.keys()].some((id) => !room.ideas.get(id)?.sealed);
   if (!stillWriting) room.opened = true;
-  return ideaView(room);
+  return { ok: true, ...ideaView(room) };
 }
 
 export function addChat(code, socketId, text) {

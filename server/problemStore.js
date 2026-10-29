@@ -10,7 +10,14 @@ function read() {
     mkdirSync(path.dirname(file), { recursive: true });
     writeFileSync(file, JSON.stringify(seedProblems, null, 2));
   }
-  return JSON.parse(readFileSync(file, "utf8"));
+  try {
+    const problems = JSON.parse(readFileSync(file, "utf8"));
+    if (!Array.isArray(problems)) throw new Error("not a list");
+    return problems;
+  } catch (err) {
+    if (err.message === "The questions file is unreadable.") throw err;
+    throw new Error("The questions file is unreadable.");
+  }
 }
 
 function write(problems) {
@@ -57,6 +64,9 @@ export function addProblem(input, author) {
     testExpected = JSON.parse(input.testExpected || "null");
   } catch {
     return { ok: false, error: "Sample test must be valid JSON. Args is an array, expected is the return value." };
+  }
+  if (!Array.isArray(testArgs)) {
+    return { ok: false, error: "Sample args must be a JSON array, like [1, 2]." };
   }
   const problem = {
     slug: slugify(title),

@@ -9,7 +9,13 @@ const secret = process.env.JWT_SECRET || "codesquad-dev-secret";
 
 function read() {
   if (!existsSync(file)) return [];
-  return JSON.parse(readFileSync(file, "utf8"));
+  try {
+    const users = JSON.parse(readFileSync(file, "utf8"));
+    if (!Array.isArray(users)) throw new Error("not a list");
+    return users;
+  } catch {
+    throw new Error("The accounts file is unreadable.");
+  }
 }
 
 function write(users) {
