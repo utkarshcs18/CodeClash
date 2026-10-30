@@ -1,4 +1,4 @@
-export function LobbyView({ user, code, error, busy, deck, problems, question, onCode, onQuestion, onCreate, onJoin, onAdd, onLogout }) {
+export function LobbyView({ user, code, roomError, questionError, pageError, busy, deck, problems, question, onCode, onQuestion, onCreate, onJoin, onAdd, onLogout }) {
   return (
     <div className="wrap">
       <nav>
@@ -64,7 +64,7 @@ export function LobbyView({ user, code, error, busy, deck, problems, question, o
           <button className="btn btn-ghost" type="submit" disabled={busy}>
             Join room
           </button>
-          {error ? <p className="form-error">{error}</p> : null}
+          {roomError ? <p className="form-error" role="alert">{roomError}</p> : null}
         </form>
       </header>
 
@@ -94,6 +94,7 @@ export function LobbyView({ user, code, error, busy, deck, problems, question, o
           </div>
           <p>A pattern enters the deck only after the room seals its sentences and the hidden tests pass. Face-down cards are still waiting.</p>
         </div>
+        {pageError ? <p className="form-error" role="alert">{pageError}</p> : null}
         <div className="deck">
           {problems.map((problem, index) => {
             const owned = deck.find((card) => card.slug === problem.slug);
@@ -155,6 +156,7 @@ export function LobbyView({ user, code, error, busy, deck, problems, question, o
           <button className="btn btn-dark" type="submit">
             Save question
           </button>
+          {questionError ? <p className="form-error" role="alert">{questionError}</p> : null}
         </form>
         <p className="note">
           These are original problems in the style of coding-site questions. The wording is ours. The habit is the sentence you seal before the code, not a streak counter.

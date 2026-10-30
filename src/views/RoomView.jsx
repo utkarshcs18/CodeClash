@@ -29,6 +29,7 @@ export function RoomView({
   onLeave,
   onDraft,
   onSeal,
+  notice,
 }) {
   const [notes, setNotes] = useState(false);
   const [flipped, setFlipped] = useState(false);
@@ -42,7 +43,7 @@ export function RoomView({
       <div className="wrap">
         <div className="card missing">
           <h1>Room not found</h1>
-          <p>{error}</p>
+          <p role="alert">{error}</p>
           <button className="btn btn-dark" type="button" onClick={onLeave}>
             Back home
           </button>
@@ -63,7 +64,8 @@ export function RoomView({
   const ideas = room.ideas || [];
   const mine = ideas.find((idea) => idea.id === meId);
   const passed = results?.rows?.filter((row) => row.pass).length ?? 0;
-  const currentStep = problem.steps[step];
+  const steps = problem.steps?.length ? problem.steps : [{ title: "Walkthrough", body: problem.story || "" }];
+  const currentStep = steps[Math.min(step, steps.length - 1)];
 
   return (
     <div className="studio">
@@ -147,20 +149,20 @@ export function RoomView({
                 Back
               </button>
               <span>
-                Step {step + 1} / {problem.steps.length}
+                Step {Math.min(step, steps.length - 1) + 1} / {steps.length}
               </span>
               <button
                 className="btn btn-ghost"
                 type="button"
-                onClick={() => onStep(Math.min(problem.steps.length - 1, step + 1))}
-                disabled={step === problem.steps.length - 1}
+                onClick={() => onStep(Math.min(steps.length - 1, step + 1))}
+                disabled={step >= steps.length - 1}
               >
                 Next
               </button>
             </div>
             <h2>{currentStep.title}</h2>
             <p>{currentStep.body}</p>
-            {problem.examples.map((example) => (
+            {problem.examples?.map((example) => (
               <div key={example.input} className="example">
                 <code>{example.input}</code>
                 <span>→ {example.output}</span>
@@ -221,6 +223,7 @@ export function RoomView({
           </article>
         ))}
       </section>
+      {notice ? <p className="form-error" role="alert">{notice}</p> : null}
 
       <section className={opened ? "page awake" : "page asleep"}>
         {!opened ? (

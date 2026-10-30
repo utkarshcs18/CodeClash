@@ -52,7 +52,7 @@ export function AuthView({ mode, form, error, busy, onChange, onSubmit }) {
           <button className="btn btn-dark" type="submit" disabled={busy}>
             {signup ? "Create account" : "Log in"}
           </button>
-          {error ? <p className="form-error">{error}</p> : null}
+          {error ? <p className="form-error" role="alert">{error}</p> : null}
         </form>
       </header>
     </div>
