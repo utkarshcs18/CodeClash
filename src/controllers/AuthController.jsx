@@ -21,6 +21,10 @@ export function AuthController({ mode }) {
     try {
       const path = mode === "signup" ? "/api/auth/register" : "/api/auth/login";
       const result = await api(path, { method: "POST", body: JSON.stringify(form) });
+      if (!result?.token || !result?.user) {
+        setError("The server did not finish signing you in.");
+        return;
+      }
       saveSession(result.token, result.user);
       navigate("/");
     } catch (err) {

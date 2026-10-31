@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { readDeck } from "../models/deck.js";
 import { api } from "../services/api.js";
-import { clearSession, currentUser, getSocket } from "../services/socket.js";
+import { clearSession, currentUser, emitAck, getSocket } from "../services/socket.js";
 import { LobbyView } from "../views/LobbyView.jsx";
 
 const emptyQuestion = {
@@ -14,66 +14,102 @@ const emptyQuestion = {
   testExpected: "null",
 };
 
+function leaveIfExpired(err, navigate) {
+  if (err?.status !== 401) return false;
+  clearSession();
+  navigate("/login");
+  return true;
+}
+
 export function LobbyController() {
   const navigate = useNavigate();
   const user = currentUser();
   const [code, setCode] = useState("");
-  const [error, setError] = useState("");
+  const [roomError, setRoomError] = useState("");
+  const [questionError, setQuestionError] = useState("");
+  const [pageError, setPageError] = useState("");
   const [busy, setBusy] = useState(false);
   const [deck] = useState(() => readDeck());
   const [problems, setProblems] = useState([]);
   const [question, setQuestion] = useState(emptyQuestion);
 
   useEffect(() => {
-    api("/api/problems").then(setProblems).catch((err) => setError(err.message));
-  }, []);
+    api("/api/problems")
+      .then((list) => {
+        setProblems(Array.isArray(list) ? list : []);
+        if (!Array.isArray(list)) setPageError("Questions came back in an unexpected shape.");
+      })
+      .catch((err) => {
+        if (leaveIfExpired(err, navigate)) return;
+        setPageError(err.message);
+      });
+  }, [navigate]);
 
-  function createRoom() {
+  useEffect(() => {
+    const socket = getSocket();
+    function onFail(err) {
+      if (!/login required/i.test(err?.message || "")) return;
+      clearSession();
+      navigate("/login");
+    }
+    socket.on("connect_error", onFail);
+    return () => socket.off("connect_error", onFail);
+  }, [navigate]);
+
+  async function createRoom() {
     setBusy(true);
-    setError("");
-    const timer = setTimeout(() => {
-      setBusy(false);
-      setError("The room server did not answer. Run npm run dev, then try again.");
-    }, 4000);
-    getSocket().emit("room:create", {}, (result) => {
-      clearTimeout(timer);
-      setBusy(false);
+    setRoomError("");
+    try {
+      const result = await emitAck("room:create", {});
       if (!result?.ok) {
-        setError("The room server did not answer. Run npm run dev, then try again.");
+        setRoomError(result?.error || "Could not open a room.");
         return;
       }
       navigate(`/room/${result.state.code}`);
-    });
+    } catch (err) {
+      setRoomError(err.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function joinRoom(event) {
+  async function joinRoom(event) {
     event.preventDefault();
     const nextCode = code.trim().toUpperCase();
     if (!nextCode) {
-      setError("Enter the room code your friend sent.");
+      setRoomError("Enter the room code your friend sent.");
       return;
     }
     setBusy(true);
-    setError("");
-    getSocket().emit("room:join", { code: nextCode }, (result) => {
-      setBusy(false);
+    setRoomError("");
+    try {
+      const result = await emitAck("room:join", { code: nextCode });
       if (!result?.ok) {
-        setError(result?.error || "Could not join that room.");
+        setRoomError(result?.error || "Could not join that room.");
         return;
       }
       navigate(`/room/${result.state.code}`);
-    });
+    } catch (err) {
+      setRoomError(err.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function addQuestion(event) {
     event.preventDefault();
-    setError("");
+    setQuestionError("");
     try {
       const result = await api("/api/problems", { method: "POST", body: JSON.stringify(question) });
+      if (!result?.problem) {
+        setQuestionError("The question was not saved.");
+        return;
+      }
       setProblems((list) => [...list, result.problem]);
       setQuestion(emptyQuestion);
     } catch (err) {
-      setError(err.message);
+      if (leaveIfExpired(err, navigate)) return;
+      setQuestionError(err.message);
     }
   }
 
@@ -86,7 +122,9 @@ export function LobbyController() {
     <LobbyView
       user={user}
       code={code}
-      error={error}
+      roomError={roomError}
+      questionError={questionError}
+      pageError={pageError}
       busy={busy}
       deck={deck}
       problems={problems}

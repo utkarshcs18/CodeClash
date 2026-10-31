@@ -35,3 +35,21 @@ export function getSocket() {
   if (!socket) socket = io({ auth: { token } });
   return socket;
 }
+
+export function emitAck(event, payload, ms = 4000) {
+  const socket = getSocket();
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error("The room server did not answer. Run npm run dev, then try again."));
+    }, ms);
+    socket.emit(event, payload, (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    });
+  });
+}
